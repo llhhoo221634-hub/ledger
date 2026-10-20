@@ -1,6 +1,8 @@
 # 账本 App
 
-单文件、纯本地、零依赖的记账页。数据存在浏览器 localStorage（key `ledger_v2`），不联网。
+单文件、纯本地、零依赖的记账页。
+
+**在线版**：https://llhhoo221634-hub.github.io/ledger/  ·  **仓库**：https://github.com/llhhoo221634-hub/ledger数据存在浏览器 localStorage（key `ledger_v2`），不联网。
 
 ## 文件
 
