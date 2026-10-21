@@ -28,13 +28,14 @@
 <title>账本</title>
 <style>
 :root{
-  --bg:#05060A;
-  --card:#0E1119;
-  --line:rgba(255,255,255,.075);
+  --bg:#07070A;
+  --card:#131317;
+  --card2:#1B1B20;
+  --line:rgba(255,255,255,.07);
   --hair:rgba(255,255,255,.055);
-  --txt:#EBEFF7;
-  --dim:#8D97A8;
-  --dim2:#626C7C;
+  --txt:#F2F2F5;
+  --dim:rgba(242,242,245,.62);
+  --dim2:rgba(242,242,245,.42);
   --o:#FF7A45;
   --p:#E63A6B;
   --v:#8B7CFF;
@@ -63,13 +64,12 @@ body.lock{overflow:hidden}
 body::before{
   content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
   background:
-    radial-gradient(120% 80% at 50% -10%, rgba(255,122,69,.10), transparent 60%),
-    radial-gradient(100% 70% at 100% 100%, rgba(139,124,255,.08), transparent 60%),
-    #05060A;
+    radial-gradient(90% 50% at 50% -8%, rgba(255,122,69,.09), transparent 62%),
+    #07070A;
 }
 /* 流动的液态光斑（纯 transform 动画，走合成层） */
 .liquid{position:fixed;inset:-10%;z-index:0;pointer-events:none;overflow:hidden}
-.liquid i{position:absolute;display:block;border-radius:50%;opacity:.5;will-change:transform;
+.liquid i{position:absolute;display:block;border-radius:50%;opacity:.13;will-change:transform;
   mix-blend-mode:screen}
 .liquid i:nth-child(1){width:78vmin;height:78vmin;left:-24vmin;top:-26vmin;
   background:radial-gradient(circle at 45% 45%, rgba(255,106,61,.85), rgba(255,106,61,0) 70%);
@@ -509,114 +509,62 @@ body::after{
   box-shadow:0 18px 40px -18px #000;opacity:0;pointer-events:none;transition:.26s cubic-bezier(.22,1,.36,1)}
 .toast.on{opacity:1;transform:translate(-50%,0)}
 
-/* ================= 液态玻璃皮肤 ================= */
-/* 玻璃卡片：半透明 + 顶部亮边 + 底部暗边 + 内描边 */
-.mini>div,.icard,.stathero,.donutcard,.goal,.sbox{
-  background:linear-gradient(180deg,rgba(255,255,255,.085) 0%,rgba(255,255,255,.028) 55%,rgba(255,255,255,.05) 100%);
-  border:1px solid rgba(255,255,255,.12);
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.28),
-    inset 0 -1px 0 rgba(0,0,0,.3),
-    inset 0 0 0 1px rgba(255,255,255,.04),
-    0 18px 40px -32px #000;
-}
-/* 主卡：暖色玻璃 */
+
+/* ================= v3 表面层级 =================
+   参考：BeeCount 的 surface 三层 (#000/#1C1C1E/#2C2C2E) + 文字透明度阶梯
+        gider.im 的 zinc 暗色底 + income/expense 语义色
+        Expenso 的 #121212 背景 / #1A191E 卡片
+   原则：靠明度分层，不靠描边和发光。 */
 .hero{
   background:
-    radial-gradient(75% 62% at 0% 0%, rgba(255,124,68,.20), transparent 58%),
-    radial-gradient(70% 60% at 100% 0%, rgba(230,58,107,.14), transparent 60%),
-    radial-gradient(85% 55% at 55% 110%, rgba(58,86,255,.14), transparent 70%),
-    linear-gradient(160deg,rgba(255,255,255,.085),rgba(18,22,34,.55) 55%,rgba(10,13,20,.62));
-  border:1px solid rgba(255,255,255,.16);
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.55),
-    inset 0 -1px 0 rgba(0,0,0,.45),
-    inset 0 0 0 1px rgba(255,255,255,.06),
-    0 30px 64px -34px rgba(255,94,60,.5),
-    0 16px 40px -30px #000;
+    radial-gradient(120% 90% at 110% -20%, rgba(255,122,69,.13), transparent 62%),
+    linear-gradient(165deg,#17171C 0%,#121216 62%,#101014 100%);
+  border:0;
+  box-shadow:none;
 }
-.hero::after{
-  content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;
-  background:linear-gradient(168deg,rgba(255,255,255,.09),rgba(255,255,255,0) 36%);
+.hero::before,.hero::after{display:none}
+.mini>div,.icard,.stathero,.donutcard,.goal,.sbox{
+  background:#131317;
+  border:0;
+  box-shadow:none;
 }
-/* 大数字加一点玻璃光晕 */
-.big{text-shadow:0 1px 0 rgba(255,255,255,.12),0 10px 34px rgba(255,120,70,.28)}
-
-/* Dock：真·液态玻璃（含边缘折射，Chromium 才画） */
-.tabbar .dock{background:none;border:0;box-shadow:none;isolation:isolate}
-.dock::before{
-  content:'';position:absolute;inset:0;z-index:-2;border-radius:inherit;
-  background:linear-gradient(160deg,rgba(255,255,255,.14),rgba(18,22,32,.55) 42%,rgba(10,13,20,.72));
-  -webkit-backdrop-filter:blur(20px) saturate(190%);
-  backdrop-filter:blur(20px) saturate(190%);
-}
-.dock::after{
-  content:'';position:absolute;inset:0;z-index:-1;border-radius:inherit;
-  -webkit-backdrop-filter:url(#lensBar);
-  backdrop-filter:url(#lensBar);
-  background:linear-gradient(180deg,rgba(255,255,255,.16),transparent 46%);
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.6),
-    inset 0 -1px 0 rgba(0,0,0,.42),
-    inset 0 0 0 1px rgba(255,255,255,.12);
-}
-
-/* 记账面板：整块玻璃 */
+.mini .k,.secttl,.dayhd,.stathero .k,.gsum .k,.tipcard .tt{color:var(--dim2)}
+.big{text-shadow:none}
+/* Dock：只用模糊和明度，不要高光边 */
+.tabbar .dock{background:rgba(10,10,13,.86);border:0;
+  -webkit-backdrop-filter:blur(22px) saturate(150%);backdrop-filter:blur(22px) saturate(150%);
+  box-shadow:0 18px 40px -22px #000}
+.dock::before,.dock::after{display:none}
+.tab.on{background:rgba(255,255,255,.07);border-color:transparent}
+/* 面板：像 BeeCount 那样用纯黑底 + 深色键 */
 .sheet{
-  background:linear-gradient(180deg,rgba(26,30,42,.72),rgba(9,11,17,.9));
-  -webkit-backdrop-filter:blur(28px) saturate(180%);
-  backdrop-filter:blur(28px) saturate(180%);
-  border-top:1px solid rgba(255,255,255,.18);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.28),0 -30px 60px -24px #000;
+  background:#0A0A0D;
+  border-top:1px solid rgba(255,255,255,.07);
+  box-shadow:0 -24px 60px -30px #000;
+  -webkit-backdrop-filter:none;backdrop-filter:none;
 }
-
-/* 键盘：果冻按键 */
 .np button{
-  background:
-    radial-gradient(120% 80% at 50% 0%,rgba(255,255,255,.2),rgba(255,255,255,0) 60%),
-    linear-gradient(180deg,rgba(255,255,255,.12),rgba(255,255,255,.035) 55%,rgba(255,255,255,.02));
-  border:1px solid rgba(255,255,255,.105);
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.24),
-    inset 0 -6px 12px -10px rgba(0,0,0,.95),
-    0 10px 20px -18px #000;
-  transition:transform .12s cubic-bezier(.34,1.56,.64,1),background .18s,box-shadow .2s;
+  background:#17171B;border:1px solid rgba(255,255,255,.05);box-shadow:none;
+  border-radius:14px;transition:background .12s,transform .1s;
 }
-.np button:active{
-  transform:scale(.94);
-  background:linear-gradient(180deg,rgba(255,255,255,.22),rgba(255,255,255,.08));
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.5),0 0 26px -6px rgba(255,255,255,.35);
-}
-/* 分类圆钮：玻璃球 */
-.cbtn .b{
-  background:
-    radial-gradient(circle at 32% 24%,rgba(255,255,255,.42),rgba(255,255,255,.05) 52%,rgba(255,255,255,.02)),
-    linear-gradient(180deg,rgba(255,255,255,.1),rgba(255,255,255,.02));
-  border:1px solid rgba(255,255,255,.14);
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.5),
-    inset 0 -8px 14px -12px rgba(0,0,0,.9),
-    0 10px 20px -16px #000;
-}
-/* 通用按钮 */
-.btn,.gobtn:disabled{
-  background:linear-gradient(180deg,rgba(255,255,255,.12),rgba(255,255,255,.03));
-  border:1px solid rgba(255,255,255,.13);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.3),0 12px 26px -22px #000;
-}
-/* 输入框也做成玻璃凹槽 */
-.srow input,.savenote{
-  background:rgba(255,255,255,.06);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.12),inset 0 -1px 0 rgba(0,0,0,.35);
-  border:1px solid rgba(255,255,255,.1);
-}
-/* 无障碍：系统开启"降低透明度"时退回实心 */
-@media (prefers-reduced-transparency: reduce){
-  .hero,.sheet,.dock::before,.dock::after{-webkit-backdrop-filter:none;backdrop-filter:none}
-  .hero{background:linear-gradient(160deg,#1a1420,#0d1018)}
-  .sheet{background:#0d1018}
-  .dock::before{background:#12151d}
-}
+.np button:active{background:#26262C;transform:scale(.97)}
+.np button.d{background:#131317}
+.gobtn{box-shadow:none}
+.btn,.savenote,.srow input{background:#17171B;border:1px solid rgba(255,255,255,.06);box-shadow:none}
+/* 分类：单色淡底 + 全色图标，不要玻璃球 */
+.cbtn .b{background:none;border:1px solid transparent;box-shadow:none}
+.cbtn.on .b{transform:none;box-shadow:none}
+.cbtn.on{color:var(--txt)}
+.cbtn{transition:color .16s}
+.cbtn.on .b::after{content:'';position:absolute;inset:-4px;border-radius:inherit;
+  border:1px solid currentColor;opacity:.5;pointer-events:none}
+.cbtn .b{position:relative}
+/* 环：细一点，别发光 */
+.ring .rp{stroke-width:6}
+.rlab b{font-weight:700;letter-spacing:-.6px}
+/* 强调色只用在「主操作 + 当前状态」 */
+.fab{box-shadow:0 12px 26px -14px rgba(232,58,107,.8)}
+.tab.on svg{filter:none}
 </style>
 </head>
 <body>
@@ -660,7 +608,7 @@ body::after{
           <stop offset="1" stop-color="rgba(255,150,90,0)"/>
         </linearGradient>
       </defs>
-      <path id="sparkArea" fill="url(#sparkGrad)"/>
+      <path id="sparkArea" fill="none"/>
       <path id="sparkLine" fill="none" stroke="#FFC59B" stroke-width="2"
             stroke-linecap="round" stroke-linejoin="round"/>
       <circle id="sparkDot" r="2.8" fill="#fff"/>

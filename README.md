@@ -96,6 +96,19 @@ git push -u origin main
 - 记账面板与页面改为按视口高度自适应
 - 当月天数改为自动跟随日历
 
+## v3：参考开源实现的表面层级（2026-10-21）
+
+对比了 4 个 GitHub 上的记账项目，核心结论是**靠明度分层，不靠描边和发光**：
+
+| 项目 | 星球 | 做法 | 本版采纳 |
+|---|---|---|---|
+| [BeeCount](https://github.com/TNT-Likely/BeeCount) | 2.6k | `docs/design/DESIGN_TOKENS.md` 明确三层表面 #000/#1C1C1E/#2C2C2E；文字用透明度阶梯 100/70/54/38；暗黑模式边框=主题色 30% 或透明；键盘用纯黑键；选中态=主题色 12–15% | 三层表面 + 透明度阶梯 + 纯黑面板 + 深色键 |
+| [Cent](https://github.com/glink25/Cent) | 1.2k | shadcn token 体系，支出/收入走语义色变量；半径由一个 `--radius` 派生；除输入框外禁用文本选择 | 语义色 + 统一的圆角/间距刻度 |
+| [gider.im](https://github.com/needim/gider.im-pwa) | 211 | zinc 暗色（bg 240 10% 3.9%，border 240 3.7% 15.9%），图表用 income 青 / expense 橙 | 更中性的底色，强调色只留给主操作 |
+| [Expenso](https://github.com/Spikeysanju/Expenso) | 1.1k | 背景 #121212 / 卡片 #1A191E，收入 #6FCF97 / 支出 #EB5757 | 卡片比背景亮一档的处理 |
+
+落地：删掉 v2 的全屏高光边、玻璃球图标和发光数字，改成扁平面板 + 细描边图标 + 只在 FAB/主按钮/当前状态用强调色。
+
 ## 液态玻璃皮肤（v2.2）
 
 参考 Apple Liquid Glass（iOS 26）与 HyperOS 的玻璃质感，四层叠加：
