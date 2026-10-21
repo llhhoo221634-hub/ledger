@@ -95,3 +95,18 @@ git push -u origin main
 - 深色极光风格重做、环形预算、7 日曲线、面积图、环形占比、悬浮 Dock
 - 记账面板与页面改为按视口高度自适应
 - 当月天数改为自动跟随日历
+
+## 液态玻璃皮肤（v2.2）
+
+参考 Apple Liquid Glass（iOS 26）与 HyperOS 的玻璃质感，四层叠加：
+
+1. **磨砂体**：半透明渐变 + `backdrop-filter: blur() saturate(180%)`（Dock、面板）
+2. **边缘折射**：`backdrop-filter: url(#lensBar)` + SVG `feDisplacementMap`，让 Dock 边缘把背景"掰弯"（Chromium 生效，其它浏览器自动忽略）
+3. **高光**：`inset 0 1px 0` 亮边 + `inset 0 -1px 0` 暗边 + 顶部渐隐反光
+4. **外阴影**：让控件浮起
+
+按键做成"果冻"：顶部径向高光 + 内阴影 + 按下 `scale(.94)` 回弹（`cubic-bezier(.34,1.56,.64,1)`）。
+
+背景是 4 团 `mix-blend-mode: screen` 的光斑，纯 transform 动画（26–38s 循环），只在合成层跑。
+
+**踩坑**：主卡高光层原来用 `mix-blend-mode: overlay`，在 WebKit 上会在圆环周围画出一块深色矩形（图层分块渲染 bug），改成普通半透明白渐变后消失。
