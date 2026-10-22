@@ -679,6 +679,15 @@ body::after{
     <div class="srow"><label>当月天数<em>按日历自动切换，不用手填</em></label><span class="auto" id="cDim">–</span></div>
   </div>
   <div class="tip" id="cfgTip"></div>
+  <div class="secttl"><span>云同步</span><b id="syncState">未开启</b></div>
+  <div class="sbox">
+    <div class="srow"><label>GitHub Token<em>只存这台设备，不进备份文件</em></label><input id="sToken" type="password" placeholder="ghp_…" autocomplete="off"></div>
+    <div class="srow"><label>数据仓库<em>私有仓库，不存在会自动创建</em></label><input id="sRepo" type="text" placeholder="ledger-data"></div>
+  </div>
+  <button class="btn" id="sOn">开启同步</button>
+  <button class="btn" id="sNow">立即同步</button>
+  <div class="tip" id="syncTip">数据存在你自己的 GitHub 私有仓库里（一个 JSON 文件），不经过任何第三方服务器。手机和电脑填同一个 Token 就能互通；改动后 2 秒自动上传，打开页面和切回前台自动拉取。</div>
+
   <div class="secttl"><span>数据</span></div>
   <button class="btn" id="exp">导出备份（JSON）</button>
   <button class="btn" id="imp">导入备份</button>
@@ -773,15 +782,20 @@ function normalize(raw){
       note:String(t.note==null?'':t.note).slice(0,60)
     }));
   const goals=GOALS.map((g,i)=>{const v=numOr(o.goals&&o.goals[i],0);return v>0?v:0;});
+  const deleted=(Array.isArray(o.deleted)?o.deleted:[])
+    .filter(x=>x&&x.id).map(x=>({id:String(x.id).slice(0,40),ts:numOr(x.ts,0)})).slice(-2000);
   const tab=['list','stat','goal','cfg'].indexOf(o.tab)>=0?o.tab:'list';
-  return {cfg:cfg,tx:tx.slice(0,5000),goals:goals,cat:okCat(o.cat)?o.cat:'吃饭',tab:tab,dayOff:0};
+  return {cfg:cfg,tx:tx.slice(0,5000),goals:goals,cat:okCat(o.cat)?o.cat:'吃饭',tab:tab,dayOff:0,
+    deleted:deleted,updatedAt:numOr(o.updatedAt,0)};
 }
 let S=normalize(null);
 try{const raw=JSON.parse(localStorage.getItem(K));if(raw)S=normalize(raw);}catch(e){}
 const dayStr=off=>{const d=new Date();d.setDate(d.getDate()-off);return dstr(d);};
 const r2=n=>Math.round(n*100)/100;
 const money=n=>{const v=r2(Math.abs(n));return (n<0?'-':'')+'¥'+v.toLocaleString('zh-CN',{minimumFractionDigits:v%1?2:0,maximumFractionDigits:2});};
-const save=()=>{try{localStorage.setItem(K,JSON.stringify(S));}catch(e){}};
+const save=(opt)=>{S.updatedAt=Date.now();
+  try{localStorage.setItem(K,JSON.stringify(S));}catch(e){}
+  if(!(opt&&opt.silent))scheduleSync();};
 const catOf=c=>[...CATS,INCOME].find(x=>x[0]===c)||CATS[7];
 const isExp=t=>t.cat!=='收入';
 const thisMonth=d=>d.slice(0,7)===TODAY.slice(0,7);
@@ -944,7 +958,9 @@ function renderList(){
 function askDel(id){
   const t=S.tx.find(x=>x.id===id);if(!t)return;
   if(confirm('删除这笔 '+t.cat+' '+money(t.amt)+' ？')){
-    S.tx=S.tx.filter(x=>x.id!==id);save();renderAll();toast('已删除');
+    S.tx=S.tx.filter(x=>x.id!==id);
+    S.deleted=(S.deleted||[]).concat({id:id,ts:Date.now()}).slice(-2000);
+    save();renderAll();toast('已删除');
   }
 }
 /* 长按删除（单击不再触发删除，避免误触） */
@@ -1184,9 +1200,148 @@ $('gobtn').onclick=()=>{
 };
 $('note').addEventListener('keydown',e=>{if(e.key==='Enter')$('gobtn').click();});
 
+
+/* ================= 云同步（GitHub 私有仓库） ================= */
+const SYNC_KEY='ledger_sync_v1';
+let SYNC={on:false,token:'',repo:'ledger-data',user:'',lastSync:0,busy:false};
+try{const raw=JSON.parse(localStorage.getItem(SYNC_KEY));if(raw&&typeof raw==='object')SYNC=Object.assign(SYNC,raw);}catch(e){}
+const saveSync=()=>{try{localStorage.setItem(SYNC_KEY,JSON.stringify({on:SYNC.on,token:SYNC.token,repo:SYNC.repo,user:SYNC.user,lastSync:SYNC.lastSync}));}catch(e){}};
+
+function b64enc(str){
+  const u8=new TextEncoder().encode(str);let s='';
+  for(let i=0;i<u8.length;i+=0x8000)s+=String.fromCharCode.apply(null,u8.subarray(i,i+0x8000));
+  return btoa(s);
+}
+function b64dec(b){
+  const bin=atob(String(b).replace(/\s/g,'')),u8=new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++)u8[i]=bin.charCodeAt(i);
+  return new TextDecoder().decode(u8);
+}
+
+async function gh(path,opt){
+  const r=await fetch('https://api.github.com'+path,Object.assign({
+    headers:{'Authorization':'Bearer '+SYNC.token,'Accept':'application/vnd.github+json','Content-Type':'application/json'}
+  },opt||{}));
+  if(r.status===404)return {_404:true};
+  if(!r.ok){
+    let msg='';try{msg=(await r.json()).message||'';}catch(e){}
+    throw new Error(r.status+(msg?' '+msg:''));
+  }
+  return r.json();
+}
+
+function setSyncState(txt,cls){
+  SYNC.state=txt;
+  const a=$('syncState');if(a){a.textContent=txt;a.style.color=cls==='err'?'var(--r)':(cls==='ok'?'var(--g)':'var(--dim2)');}
+  const b=$('syncTip');if(b&&cls==='err')b.textContent='同步失败：'+txt;
+}
+
+const tsOf=t=>numOr(t.ts,0)||Date.parse((t.d||'2010-01-01')+'T00:00:00')||0;
+
+function mergeState(local,remote){
+  if(!remote||!Array.isArray(remote.tx))return local;
+  const map=new Map();
+  [...remote.tx,...local.tx].forEach(t=>{
+    const cur=map.get(t.id);
+    if(!cur||tsOf(t)>tsOf(cur))map.set(t.id,t);
+  });
+  const dead=new Map();
+  [...(remote.deleted||[]),...(local.deleted||[])].forEach(x=>{
+    if(!x||!x.id)return;
+    const cur=dead.get(x.id)||0;
+    if(numOr(x.ts,0)>cur)dead.set(x.id,numOr(x.ts,0));
+  });
+  const tx=[...map.values()].filter(t=>!(dead.get(t.id)>=tsOf(t)));
+  const goals=GOALS.map((g,i)=>Math.max(numOr(local.goals[i],0),numOr((remote.goals||[])[i],0)));
+  const cfgNewer=numOr(remote.updatedAt,0)>numOr(local.updatedAt,0)&&remote.cfg?remote.cfg:local.cfg;
+  return Object.assign({},local,{tx:tx,goals:goals,cfg:cfgNewer,
+    deleted:[...dead].map(([id,ts])=>({id:id,ts:ts})).slice(-2000)});
+}
+
+let syncTimer=null;
+function scheduleSync(){
+  if(!SYNC.on||!SYNC.token||SYNC.busy)return;
+  clearTimeout(syncTimer);
+  syncTimer=setTimeout(()=>syncNow(false),2200);
+}
+
+async function syncNow(manual){
+  if(!SYNC.on||!SYNC.token){if(manual)toast('先在上面填 Token 并开启');return false;}
+  if(SYNC.busy)return false;
+  SYNC.busy=true;setSyncState('同步中…');
+  try{
+    const me=await gh('/user');
+    SYNC.user=me.login;
+    let repo=await gh('/repos/'+SYNC.user+'/'+SYNC.repo);
+    if(repo._404){
+      setSyncState('创建仓库…');
+      await gh('/user/repos',{method:'POST',body:JSON.stringify({
+        name:SYNC.repo,private:true,description:'账本数据（自动同步）'})});
+    }
+    const file=await gh('/repos/'+SYNC.user+'/'+SYNC.repo+'/contents/data.json');
+    let remote=null;
+    if(!file._404){try{remote=JSON.parse(b64dec(file.content));}catch(e){remote=null;}}
+    const merged=mergeState(S,remote);
+    S=merged;
+    save({silent:true});
+    const payload=JSON.stringify({tx:S.tx,goals:S.goals,cfg:S.cfg,
+      deleted:S.deleted||[],updatedAt:S.updatedAt||Date.now()});
+    await gh('/repos/'+SYNC.user+'/'+SYNC.repo+'/contents/data.json',{
+      method:'PUT',
+      body:JSON.stringify({message:'sync '+new Date().toISOString(),
+        content:b64enc(payload),...(file._404?{}:{sha:file.sha})})
+    });
+    SYNC.lastSync=Date.now();saveSync();
+    renderAll();
+    setSyncState('已同步 '+new Date().toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'}),'ok');
+    if(manual)toast('同步完成');
+    return true;
+  }catch(e){
+    const m=String(e.message||e);
+    const friendly=/401/.test(m)?'Token 无效或已过期':(/403/.test(m)?'被 GitHub 限制（检查 Token 权限）':(/Failed to fetch/.test(m)?'网络不通':'失败'));
+    setSyncState(friendly,'err');
+    if(manual)toast('同步失败：'+friendly);
+    return false;
+  }finally{
+    SYNC.busy=false;
+  }
+}
+
+/* 设置页里的绑定 */
+function bindSync(){
+  const tk=$('sToken'),rp=$('sRepo'),on=$('sOn'),now=$('sNow');
+  if(!tk||!rp)return;
+  if(document.activeElement!==tk)tk.value=SYNC.token;   /* 别打断正在输入 */
+  if(document.activeElement!==rp)rp.value=SYNC.repo;
+  setSyncState(SYNC.on?(SYNC.lastSync?'已开启':'已开启，未同步'):'未开启');
+  on.textContent=SYNC.on?'关闭同步':'开启同步';
+  on.onclick=async()=>{
+    if(SYNC.on){
+      SYNC.on=false;saveSync();setSyncState('未开启');on.textContent='开启同步';toast('已关闭同步');
+      return;
+    }
+    const t=tk.value.trim(),r=(rp.value.trim()||'ledger-data');
+    if(!/^(ghp_|github_pat_)/.test(t)){toast('Token 格式不对');return;}
+    SYNC.token=t;SYNC.repo=r;SYNC.on=true;saveSync();
+    on.textContent='关闭同步';
+    const ok=await syncNow(true);
+    if(!ok){SYNC.on=false;saveSync();on.textContent='开启同步';}   /* 保留错误提示，别覆盖成"未开启" */
+  };
+  now.onclick=()=>syncNow(true);
+}
+
+/* 打开页面、切回前台时各拉一次 */
+function bootSync(){
+  if(!SYNC.on||!SYNC.token)return;
+  setTimeout(()=>syncNow(false),900);
+}
+document.addEventListener('visibilitychange',()=>{
+  if(!document.hidden&&SYNC.on&&SYNC.token&&Date.now()-(SYNC.lastSync||0)>60000)syncNow(false);
+});
+
 /* ================= 启动 ================= */
-function renderAll(){renderList();renderStat();renderGoals();renderCfg();}
-buildCats();buildDaySel();paint();renderAll();go(S.tab||'list');
+function renderAll(){renderList();renderStat();renderGoals();renderCfg();bindSync();}
+buildCats();buildDaySel();paint();renderAll();go(S.tab||'list');bootSync();
 
 /* ---------- 跨零点自动刷新「今天」 ---------- */
 function rollover(){
